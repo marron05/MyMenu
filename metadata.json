@@ -1,0 +1,6 @@
+{
+  "name": "MyMenu - Descubre qué comer cerca, en video",
+  "description": "Web-app mobile-first estilo TikTok para descubrir los platos más apetitosos en video de restaurantes en Lechería, Puerto La Cruz, Barcelona y Guanta. Pide directo por WhatsApp.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
