@@ -35,6 +35,9 @@ export const RestaurantDashboard: React.FC = () => {
     setActiveRestaurantId,
     showToast,
     setActiveTab,
+    currentUser,
+    setIsAuthModalOpen,
+    signOut,
   } = useMenu();
 
   const currentRestaurant =
@@ -44,23 +47,27 @@ export const RestaurantDashboard: React.FC = () => {
   // Active view inside portal: 'upload' | 'menu' | 'profile' | 'analytics'
   const [portalTab, setPortalTab] = useState<'upload' | 'menu' | 'profile'>('upload');
 
+  // Video preset category filter
+  const [presetCategoryFilter, setPresetCategoryFilter] = useState<string>('all');
+
   // Form State for new dish
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('12.50');
-  const [category, setCategory] = useState<DishCategory>('Hamburguesas');
-  const [prepTime, setPrepTime] = useState('15');
-  const [ingredientsText, setIngredientsText] = useState('');
-  const [selectedAllergens, setSelectedAllergens] = useState<string[]>([]);
-  const [tagsText, setTagsText] = useState('Recomendado del Chef, Hecho al Momento');
+  const [name, setName] = useState(STOCK_VIDEO_PRESETS[0].title);
+  const [description, setDescription] = useState(
+    'Doble carne jugosa smash con costra caramelizada, queso cheddar fundido y pan brioche artesanal tostado con mantequilla.'
+  );
+  const [price, setPrice] = useState(STOCK_VIDEO_PRESETS[0].defaultPrice.toString());
+  const [category, setCategory] = useState<DishCategory>(STOCK_VIDEO_PRESETS[0].category);
+  const [prepTime, setPrepTime] = useState(STOCK_VIDEO_PRESETS[0].defaultPrepTime.toString());
+  const [ingredientsText, setIngredientsText] = useState(STOCK_VIDEO_PRESETS[0].defaultIngredients.join(', '));
+  const [selectedAllergens, setSelectedAllergens] = useState<string[]>(['Gluten', 'Lácteos']);
+  const [tagsText, setTagsText] = useState(STOCK_VIDEO_PRESETS[0].defaultTags.join(', '));
   const [isAiEnhanced, setIsAiEnhanced] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
 
-  // Video source state: either uploaded file URL or selected preset
+  // Video source state: selected gourmet preset
   const [videoUrl, setVideoUrl] = useState(STOCK_VIDEO_PRESETS[0].videoUrl);
   const [posterUrl, setPosterUrl] = useState(STOCK_VIDEO_PRESETS[0].posterUrl);
-  const [customVideoFileName, setCustomVideoFileName] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedPresetId, setSelectedPresetId] = useState(STOCK_VIDEO_PRESETS[0].id);
 
   // AI Description Generator loading state
   const [isGeneratingAiDesc, setIsGeneratingAiDesc] = useState(false);
@@ -77,28 +84,24 @@ export const RestaurantDashboard: React.FC = () => {
   const [profileWhatsapp, setProfileWhatsapp] = useState(currentRestaurant.whatsapp);
   const [profileHours, setProfileHours] = useState(currentRestaurant.openingHours);
 
-  // Handle local video file upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('video/')) {
-        showToast('Por favor sube un archivo de video válido (.mp4, .mov, .webm)');
-        return;
-      }
-      const objectUrl = URL.createObjectURL(file);
-      setVideoUrl(objectUrl);
-      setCustomVideoFileName(file.name);
-      setPosterUrl('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=900&auto=format&fit=crop&q=80');
-      showToast('Video cargado en vista previa 🎬');
-    }
-  };
-
-  // Select stock preset video
+  // Select stock preset video and auto-populate smart defaults
   const handleSelectPreset = (preset: typeof STOCK_VIDEO_PRESETS[0]) => {
     setVideoUrl(preset.videoUrl);
     setPosterUrl(preset.posterUrl);
-    setCustomVideoFileName(null);
-    showToast(`Video de "${preset.title}" seleccionado`);
+    setSelectedPresetId(preset.id);
+    setName(preset.title);
+    setCategory(preset.category);
+    setPrice(preset.defaultPrice.toFixed(2));
+    setPrepTime(preset.defaultPrepTime.toString());
+    setTagsText(preset.defaultTags.join(', '));
+    setIngredientsText(preset.defaultIngredients.join(', '));
+    showToast(`Video de "${preset.title}" cargado 🎬`);
+    
+    // Auto play preview
+    if (previewVideoRef.current) {
+      previewVideoRef.current.currentTime = 0;
+      previewVideoRef.current.play().then(() => setIsPreviewPlaying(true)).catch(() => {});
+    }
   };
 
   // AI Description Enhancer
@@ -110,8 +113,6 @@ export const RestaurantDashboard: React.FC = () => {
 
     setIsGeneratingAiDesc(true);
     setTimeout(() => {
-      // High-appetite culinary copy generation tailored to dish
-      const keywords = ingredientsText.trim() || name;
       let generatedText = '';
       if (category === 'Hamburguesas') {
         generatedText = `Elaborada con carne Certified Angus sellada en plancha a fuego vivo para lograr una costra crujiente e interior jugoso, cubierta con queso fundido sedoso, ingredientes seleccionados y pan brioche artesanal tostado con mantequilla.`;
@@ -131,7 +132,7 @@ export const RestaurantDashboard: React.FC = () => {
       setIsAiEnhanced(true);
       setIsGeneratingAiDesc(false);
       showToast('¡Descripción apetitosa generada con IA! ✨');
-    }, 850);
+    }, 700);
   };
 
   // Publish Dish
@@ -206,6 +207,51 @@ export const RestaurantDashboard: React.FC = () => {
   return (
     <div className="w-full min-h-[calc(100dvh-57px)] bg-stone-950 text-stone-100 p-4 sm:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
+        {/* Supabase Cloud & Auth Status Banner */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-stone-900/60 border border-stone-800">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-400">
+              <Store className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white">
+                  {currentUser ? `Sesión Activa: ${currentUser.email}` : 'Modo Restaurante'}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono font-medium">
+                  Supabase RLS
+                </span>
+              </div>
+              <span className="text-[11px] text-stone-400">
+                {currentUser
+                  ? 'Tus platos se sincronizan con la base de datos PostgreSQL en la nube'
+                  : 'Inicia sesión con Supabase para publicar y sincronizar tu menú en vivo'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={signOut}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-400 hover:text-white bg-stone-950 border border-stone-800 transition-colors"
+              >
+                Cerrar Sesión
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-stone-950 bg-amber-400 hover:bg-amber-300 shadow-md transition-all"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Acceder con Supabase</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Top Header Card: Restaurant Selector & Status */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-stone-900/90 border border-stone-800 shadow-xl">
           <div className="flex items-center gap-3.5">
@@ -345,12 +391,12 @@ export const RestaurantDashboard: React.FC = () => {
         {/* TAB 1: SUBIR NUEVO PLATO */}
         {portalTab === 'upload' && (
           <form onSubmit={handlePublishDish} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Column: Video Uploader & Live Preview */}
+            {/* Left Column: Categorized Gourmet Video Catalog */}
             <div className="lg:col-span-5 space-y-4">
               <div className="p-4 rounded-2xl bg-stone-900/80 border border-stone-800">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-display font-bold text-sm text-stone-200 flex items-center gap-2">
-                    <span>1. Video del Plato (1 Plato = 1 Video)</span>
+                    <span>1. Biblioteca de Videos Gourmet</span>
                   </h3>
                   {isAiEnhanced && (
                     <span className="text-[10px] text-amber-400 flex items-center gap-1 font-medium">
@@ -361,7 +407,7 @@ export const RestaurantDashboard: React.FC = () => {
                 </div>
 
                 {/* Video Preview Box */}
-                <div className="relative aspect-[9/16] max-h-[460px] w-full rounded-xl overflow-hidden bg-black border border-stone-800 flex items-center justify-center">
+                <div className="relative aspect-[9/16] max-h-[440px] w-full rounded-xl overflow-hidden bg-black border border-stone-800 flex items-center justify-center shadow-lg">
                   <video
                     ref={previewVideoRef}
                     src={videoUrl}
@@ -392,51 +438,76 @@ export const RestaurantDashboard: React.FC = () => {
                     )}
                   </button>
 
-                  <div className="absolute bottom-2 left-2 right-2 p-2 bg-black/70 backdrop-blur-md rounded-lg text-left text-[11px] text-stone-300">
+                  <div className="absolute bottom-2 left-2 right-2 p-2 bg-black/80 backdrop-blur-md rounded-lg text-left text-[11px] text-stone-300">
                     <div className="font-bold text-white truncate">{name || 'Nombre del plato'}</div>
-                    <div className="text-amber-400 font-mono">${price || '0.00'} USD</div>
+                    <div className="text-amber-400 font-mono">${price || '0.00'} USD · {category}</div>
                   </div>
                 </div>
 
-                {/* Upload Action */}
-                <div className="mt-3 space-y-2">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    accept="video/*"
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold border border-stone-700 transition-colors"
-                  >
-                    <Upload className="w-4 h-4 text-amber-400" />
-                    <span>{customVideoFileName ? 'Cambiar Video Seleccionado' : 'Subir Video desde tu Teléfono / PC'}</span>
-                  </button>
-
-                  {/* Stock Video Presets Drawer */}
-                  <div className="pt-2">
-                    <span className="text-[11px] text-stone-400 block mb-1.5">
-                      O selecciona de la biblioteca de videos gourmet listos:
+                {/* Categorized Gourmet Video Presets Selector */}
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-200">
+                      Selecciona el video para tu plato:
                     </span>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {STOCK_VIDEO_PRESETS.slice(0, 6).map((preset) => (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => handleSelectPreset(preset)}
-                          className={`p-1.5 rounded-lg text-[10px] text-left border transition-all truncate ${
-                            videoUrl === preset.videoUrl
-                              ? 'bg-amber-400/20 border-amber-400 text-amber-300 font-semibold'
-                              : 'bg-stone-950 border-stone-800 text-stone-400 hover:text-stone-200'
-                          }`}
-                        >
-                          {preset.title.split(' ')[0]} {preset.title.split(' ')[1]}
-                        </button>
-                      ))}
-                    </div>
+                    <span className="text-[10px] text-amber-400 font-medium">
+                      Calidad HD
+                    </span>
+                  </div>
+
+                  {/* Category Filter Pills */}
+                  <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
+                    {['all', 'Hamburguesas', 'Pizzas', 'Carnes & Grill', 'Sushi & Asiática', 'Postres & Dulces', 'Brunch & Café', 'Tacos & Tex-Mex', 'Mariscos & Pescados'].map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setPresetCategoryFilter(cat)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-medium whitespace-nowrap transition-colors ${
+                          presetCategoryFilter === cat
+                            ? 'bg-amber-400 text-stone-950 font-bold'
+                            : 'bg-stone-950 text-stone-400 hover:text-stone-200 border border-stone-800'
+                        }`}
+                      >
+                        {cat === 'all' ? 'Todos' : cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Preset Cards Grid */}
+                  <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto no-scrollbar pr-1">
+                    {STOCK_VIDEO_PRESETS.filter(
+                      (p) => presetCategoryFilter === 'all' || p.category === presetCategoryFilter
+                    ).map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleSelectPreset(preset)}
+                        className={`group relative p-2 rounded-xl text-left border transition-all flex flex-col justify-between ${
+                          selectedPresetId === preset.id
+                            ? 'bg-amber-400/20 border-amber-400 text-amber-300 ring-2 ring-amber-400/30'
+                            : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700 hover:text-stone-200'
+                        }`}
+                      >
+                        <div className="relative aspect-video rounded-lg overflow-hidden bg-black mb-1.5">
+                          <img
+                            src={preset.posterUrl}
+                            alt={preset.title}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                          <div className="absolute top-1 right-1 bg-black/60 rounded p-0.5 text-white">
+                            <Play className="w-2.5 h-2.5 fill-white" />
+                          </div>
+                        </div>
+                        <div className="text-[11px] font-bold text-stone-200 line-clamp-1 leading-snug">
+                          {preset.title}
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-stone-400 font-mono mt-1">
+                          <span className="text-amber-400">${preset.defaultPrice.toFixed(2)}</span>
+                          <span>{preset.category.split(' ')[0]}</span>
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>

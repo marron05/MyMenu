@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Dish, Restaurant, FilterState, ActiveTab, CityZone, DishCategory } from '../types';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { Dish, Restaurant, FilterState, ActiveTab, CityZone, DishCategory, AuthUser } from '../types';
 import { INITIAL_DISHES, SAMPLE_RESTAURANTS } from '../data/initialData';
+import { useGeolocation, GeolocationStatus, UserCoordinates } from '../hooks/useGeolocation';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface MenuContextType {
   dishes: Dish[];
@@ -36,6 +38,19 @@ interface MenuContextType {
   filterDrawerOpen: boolean;
   setFilterDrawerOpen: (open: boolean) => void;
   
+  // Geolocation
+  userCoordinates: UserCoordinates;
+  isUsingRealGps: boolean;
+  geolocationStatus: GeolocationStatus;
+  requestLocation: () => void;
+  
+  // Supabase Auth & Session
+  currentUser: AuthUser | null;
+  setCurrentUser: (user: AuthUser | null) => void;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+  signOut: () => Promise<void>;
+  
   // Restaurant actions (Lado Restaurante)
   addDish: (newDish: Omit<Dish, 'id' | 'likesCount' | 'sharesCount' | 'viewsCount' | 'createdAt'>) => Dish;
   toggleDishFeatured: (dishId: string) => void;
@@ -51,12 +66,33 @@ interface MenuContextType {
 
 const MenuContext = createContext<MenuContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_DISHES_KEY = 'mymenu_dishes_v1';
-const LOCAL_STORAGE_SAVED_KEY = 'mymenu_saved_v1';
-const LOCAL_STORAGE_LIKES_KEY = 'mymenu_likes_v1';
-const LOCAL_STORAGE_RESTS_KEY = 'mymenu_restaurants_v1';
+const LOCAL_STORAGE_DISHES_KEY = 'mymenu_dishes_v2';
+const LOCAL_STORAGE_SAVED_KEY = 'mymenu_saved_v2';
+const LOCAL_STORAGE_LIKES_KEY = 'mymenu_likes_v2';
+const LOCAL_STORAGE_RESTS_KEY = 'mymenu_restaurants_v2';
+const LOCAL_STORAGE_USER_KEY = 'mymenu_user_v2';
 
 export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Geolocation integration
+  const {
+    coordinates: userCoordinates,
+    status: geolocationStatus,
+    isUsingRealGps,
+    requestLocation,
+    calculateDistanceFromUser,
+  } = useGeolocation();
+
+  // Supabase user state
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   const [restaurants, setRestaurants] = useState<Restaurant[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_RESTS_KEY);
@@ -94,7 +130,7 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('feed');
-  const [isMuted, setIsMuted] = useState<boolean>(true); // browser autoplay requirement default
+  const [isMuted, setIsMuted] = useState<boolean>(true);
   const [selectedDishForModal, setSelectedDishForModal] = useState<Dish | null>(null);
   const [selectedRestaurantForView, setSelectedRestaurantForView] = useState<Restaurant | null>(null);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState<boolean>(false);
@@ -111,6 +147,35 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
+
+  // Sync Supabase Auth listener
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          setCurrentUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            restaurantId: activeRestaurantId,
+          });
+        }
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          setCurrentUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            restaurantId: activeRestaurantId,
+          });
+        } else {
+          setCurrentUser(null);
+        }
+      });
+
+      return () => subscription.unsubscribe();
+    }
+  }, [activeRestaurantId]);
 
   // Sync state to LocalStorage
   useEffect(() => {
@@ -145,6 +210,18 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [restaurants]);
 
+  useEffect(() => {
+    try {
+      if (currentUser) {
+        localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+      }
+    } catch (e) {
+      console.warn('LocalStorage error:', e);
+    }
+  }, [currentUser]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -160,6 +237,14 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetFilters = () => {
     setFilters(defaultFilters);
     showToast('Filtros restablecidos');
+  };
+
+  const signOut = async () => {
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
+    setCurrentUser(null);
+    showToast('Sesión de restaurante cerrada');
   };
 
   const toggleSaveDish = (dishId: string) => {
@@ -183,7 +268,6 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLiked ? prev.filter((id) => id !== dishId) : [...prev, dishId]
     );
 
-    // Update dish like count
     setDishes((prev) =>
       prev.map((d) => {
         if (d.id === dishId) {
@@ -203,14 +287,13 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const textMessage = encodeURIComponent(
       `¡Hola *${dish.restaurantName}*! 👋\n` +
       `Vi su plato *${dish.name}* ($${dish.price.toFixed(2)}) en *MyMenu* y me gustaría hacer un pedido.\n` +
-      `📍 Zona de entrega: ${dish.restaurantCity}${notesLine}\n\n` +
+      `📍 Zona: ${dish.restaurantCity}${notesLine}\n\n` +
       `¿Tienen disponibilidad en este momento?`
     );
 
     const whatsappUrl = `https://wa.me/${targetWhatsapp}?text=${textMessage}`;
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
     
-    // Register visual analytics
     setDishes((prev) =>
       prev.map((d) => (d.id === dish.id ? { ...d, sharesCount: d.sharesCount + 1 } : d))
     );
@@ -220,17 +303,45 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addDish = (
     newDishData: Omit<Dish, 'id' | 'likesCount' | 'sharesCount' | 'viewsCount' | 'createdAt'>
   ): Dish => {
+    const rest = restaurants.find((r) => r.id === newDishData.restaurantId);
+    const dynamicDistance = rest ? calculateDistanceFromUser(rest.lat, rest.lng) : 1.0;
+
     const newDish: Dish = {
       ...newDishData,
       id: `dish-${Date.now()}`,
       likesCount: 1,
       sharesCount: 0,
       viewsCount: 1,
+      distanceKm: dynamicDistance,
       createdAt: new Date().toISOString(),
     };
 
     setDishes((prev) => [newDish, ...prev]);
-    showToast(`¡"${newDish.name}" publicado con éxito! 🎉`);
+
+    // Async push to Supabase if credentials are active
+    if (isSupabaseConfigured) {
+      supabase
+        .from('dishes')
+        .insert({
+          name: newDish.name,
+          description: newDish.description,
+          price: newDish.price,
+          category: newDish.category,
+          prep_time_minutes: newDish.prepTimeMinutes,
+          tags: newDish.tags,
+          allergens: newDish.allergens,
+          ingredients: newDish.ingredients,
+          video_url: newDish.videoUrl,
+          poster_url: newDish.posterUrl,
+          is_ai_enhanced: newDish.isAiEnhanced,
+          is_featured: newDish.isFeatured,
+        })
+        .then(({ error }) => {
+          if (error) console.warn('Supabase sync notice:', error.message);
+        });
+    }
+
+    showToast(`¡"${newDish.name}" publicado en MyMenu! 🎉`);
     return newDish;
   };
 
@@ -256,7 +367,6 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRestaurants((prev) =>
       prev.map((r) => (r.id === restaurantId ? { ...r, ...updates } : r))
     );
-    // Also update denormalized restaurant data on dishes
     if (updates.name || updates.city || updates.whatsapp || updates.logo) {
       setDishes((prev) =>
         prev.map((d) => {
@@ -276,61 +386,72 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast('Perfil del restaurante actualizado');
   };
 
-  // Filter and sort dishes
-  const filteredDishes = dishes.filter((dish) => {
-    // City filter
-    if (filters.city !== 'all' && dish.restaurantCity !== filters.city) {
-      return false;
-    }
-    // Category filter
-    if (filters.category !== 'Todo' && dish.category !== filters.category) {
-      return false;
-    }
-    // Max price
-    if (dish.price > filters.maxPrice) {
-      return false;
-    }
-    // Tag filter
-    if (filters.selectedTag && !dish.tags.includes(filters.selectedTag)) {
-      return false;
-    }
-    // Search query
-    if (filters.searchQuery.trim()) {
-      const q = filters.searchQuery.toLowerCase();
-      const matchName = dish.name.toLowerCase().includes(q);
-      const matchDesc = dish.description.toLowerCase().includes(q);
-      const matchRest = dish.restaurantName.toLowerCase().includes(q);
-      const matchIngr = dish.ingredients.some((ing) => ing.toLowerCase().includes(q));
-      const matchTag = dish.tags.some((t) => t.toLowerCase().includes(q));
-      if (!matchName && !matchDesc && !matchRest && !matchIngr && !matchTag) {
-        return false;
-      }
-    }
-    return true;
-  }).sort((a, b) => {
-    if (filters.sortBy === 'trending') {
-      // Prioritize featured then likes
-      if (a.isFeatured !== b.isFeatured) {
-        return a.isFeatured ? -1 : 1;
-      }
-      return b.viewsCount + b.likesCount * 3 - (a.viewsCount + a.likesCount * 3);
-    }
-    if (filters.sortBy === 'distance') {
-      return (a.distanceKm || 99) - (b.distanceKm || 99);
-    }
-    if (filters.sortBy === 'price-asc') {
-      return a.price - b.price;
-    }
-    if (filters.sortBy === 'popular') {
-      return b.likesCount - a.likesCount;
-    }
-    return 0;
-  });
+  // Dynamically calculate Haversine distance for all dishes and filter/sort
+  const dishesWithDistances = useMemo(() => {
+    return dishes.map((dish) => {
+      const rest = restaurants.find((r) => r.id === dish.restaurantId);
+      const computedDistance = rest
+        ? calculateDistanceFromUser(rest.lat, rest.lng)
+        : (dish.distanceKm ?? 1.2);
+      return {
+        ...dish,
+        distanceKm: computedDistance,
+      };
+    });
+  }, [dishes, restaurants, calculateDistanceFromUser]);
+
+  const filteredDishes = useMemo(() => {
+    return dishesWithDistances
+      .filter((dish) => {
+        if (filters.city !== 'all' && dish.restaurantCity !== filters.city) {
+          return false;
+        }
+        if (filters.category !== 'Todo' && dish.category !== filters.category) {
+          return false;
+        }
+        if (dish.price > filters.maxPrice) {
+          return false;
+        }
+        if (filters.selectedTag && !dish.tags.includes(filters.selectedTag)) {
+          return false;
+        }
+        if (filters.searchQuery.trim()) {
+          const q = filters.searchQuery.toLowerCase();
+          const matchName = dish.name.toLowerCase().includes(q);
+          const matchDesc = dish.description.toLowerCase().includes(q);
+          const matchRest = dish.restaurantName.toLowerCase().includes(q);
+          const matchIngr = dish.ingredients.some((ing) => ing.toLowerCase().includes(q));
+          const matchTag = dish.tags.some((t) => t.toLowerCase().includes(q));
+          if (!matchName && !matchDesc && !matchRest && !matchIngr && !matchTag) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (filters.sortBy === 'trending') {
+          if (a.isFeatured !== b.isFeatured) {
+            return a.isFeatured ? -1 : 1;
+          }
+          return b.viewsCount + b.likesCount * 3 - (a.viewsCount + a.likesCount * 3);
+        }
+        if (filters.sortBy === 'distance') {
+          return (a.distanceKm ?? 99) - (b.distanceKm ?? 99);
+        }
+        if (filters.sortBy === 'price-asc') {
+          return a.price - b.price;
+        }
+        if (filters.sortBy === 'popular') {
+          return b.likesCount - a.likesCount;
+        }
+        return 0;
+      });
+  }, [dishesWithDistances, filters]);
 
   return (
     <MenuContext.Provider
       value={{
-        dishes,
+        dishes: dishesWithDistances,
         filteredDishes,
         restaurants,
         activeTab,
@@ -352,6 +473,15 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSelectedRestaurantForView,
         filterDrawerOpen,
         setFilterDrawerOpen,
+        userCoordinates,
+        isUsingRealGps,
+        geolocationStatus,
+        requestLocation,
+        currentUser,
+        setCurrentUser,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        signOut,
         addDish,
         toggleDishFeatured,
         deleteDish,

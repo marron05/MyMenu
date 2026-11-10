@@ -8,6 +8,7 @@ import { SavedDishesView } from './components/Saved/SavedDishesView';
 import { DishDetailsModal } from './components/Modals/DishDetailsModal';
 import { RestaurantProfileModal } from './components/RestaurantDetail/RestaurantProfileModal';
 import { FilterDrawer } from './components/Modals/FilterDrawer';
+import { AuthModal } from './components/Auth/AuthModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { Toast } from './components/Toast';
 
@@ -34,6 +35,7 @@ const AppContent: React.FC = () => {
       <DishDetailsModal />
       <RestaurantProfileModal />
       <FilterDrawer />
+      <AuthModal />
       <Toast />
     </div>
   );

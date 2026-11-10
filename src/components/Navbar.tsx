@@ -13,6 +13,10 @@ export const Navbar: React.FC = () => {
     setFilters,
     setFilterDrawerOpen,
     savedDishIds,
+    isUsingRealGps,
+    requestLocation,
+    currentUser,
+    setIsAuthModalOpen,
   } = useMenu();
 
   const currentCityName =
@@ -40,14 +44,34 @@ export const Navbar: React.FC = () => {
             </div>
           </button>
 
-          {/* Quick Zone Selector trigger */}
-          <div className="hidden lg:flex items-center">
+          {/* Quick Zone Selector & Real GPS trigger */}
+          <div className="hidden sm:flex items-center gap-1.5">
             <button
               onClick={() => setFilterDrawerOpen(true)}
               className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-stone-300 hover:text-white bg-stone-900/80 hover:bg-stone-800 border border-stone-800 rounded-lg transition-colors whitespace-nowrap"
             >
               <MapPin className="w-3.5 h-3.5 text-amber-400" />
               <span>{currentCityName}</span>
+            </button>
+
+            {/* Real GPS trigger */}
+            <button
+              onClick={requestLocation}
+              title={isUsingRealGps ? 'GPS Activo (Click para recalcular)' : 'Activar GPS de tu navegador'}
+              className={`flex items-center gap-1.5 px-2 py-1 text-[11px] rounded-lg border transition-all ${
+                isUsingRealGps
+                  ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-400 font-medium'
+                  : 'bg-stone-900/50 border-stone-800 text-stone-400 hover:text-stone-200'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isUsingRealGps ? 'bg-emerald-400 animate-pulse' : 'bg-stone-500'
+                }`}
+              />
+              <span className="hidden md:inline font-mono">
+                {isUsingRealGps ? 'GPS en Vivo' : 'Activar GPS'}
+              </span>
             </button>
           </div>
         </div>
@@ -129,6 +153,18 @@ export const Navbar: React.FC = () => {
             aria-label="Filtros y Zonas"
           >
             <SlidersHorizontal className="w-4 h-4 text-stone-300" />
+          </button>
+
+          {/* Supabase Restaurant Auth trigger */}
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium text-stone-300 hover:text-white bg-stone-900 border border-stone-800 rounded-lg hover:bg-stone-800 transition-colors whitespace-nowrap shrink-0"
+            title={currentUser ? `Conectado como ${currentUser.email}` : 'Acceso Restaurante (Supabase)'}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden lg:inline">
+              {currentUser ? 'Mi Cuenta' : 'Acceso'}
+            </span>
           </button>
 
           {/* Primary Action Button */}

@@ -28,6 +28,9 @@ export const DiscoveryMap: React.FC = () => {
     filters,
     setFilters,
     setSelectedRestaurantForView,
+    userCoordinates,
+    isUsingRealGps,
+    requestLocation,
   } = useMenu();
 
   const [selectedRestId, setSelectedRestId] = useState<string>('rest-1');
@@ -326,12 +329,41 @@ export const DiscoveryMap: React.FC = () => {
           );
         })}
 
+        {/* Real User GPS Location Marker */}
+        {isUsingRealGps && (
+          <div
+            style={{
+              left: `${getMapCoordinates(userCoordinates.latitude, userCoordinates.longitude).x}%`,
+              top: `${getMapCoordinates(userCoordinates.latitude, userCoordinates.longitude).y}%`,
+            }}
+            className="absolute -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none"
+            title="Tu ubicación GPS actual"
+          >
+            <div className="w-6 h-6 rounded-full bg-sky-400/30 animate-ping absolute -inset-1" />
+            <div className="w-4 h-4 rounded-full bg-sky-400 border-2 border-white shadow-lg relative flex items-center justify-center">
+              <div className="w-1.5 h-1.5 rounded-full bg-white" />
+            </div>
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-sky-950/90 border border-sky-400/50 text-sky-200 text-[9px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap">
+              Tú estás aquí
+            </div>
+          </div>
+        )}
+
         {/* Floating Quick Legend / GPS Simulation */}
         <div className="absolute bottom-4 left-4 z-20 hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-stone-950/80 backdrop-blur-md border border-stone-800 text-stone-300 text-xs shadow-lg">
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+          <div
+            className={`w-2.5 h-2.5 rounded-full ${
+              isUsingRealGps ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+            }`}
+          />
           <span>Zona Metropolitana Anzoátegui</span>
           <span className="text-stone-600">·</span>
-          <span className="text-stone-400 font-mono">GPS Activo</span>
+          <button
+            onClick={requestLocation}
+            className="text-stone-300 hover:text-white font-mono hover:underline"
+          >
+            {isUsingRealGps ? 'GPS Calibrado' : 'Activar GPS'}
+          </button>
         </div>
       </div>
 

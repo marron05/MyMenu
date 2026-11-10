@@ -1,0 +1,6 @@
+{
+  "summary":  "Plan de implementación integral para MyMenu: integración de Supabase (PostgreSQL, Auth y RLS), geolocalización GPS real con cálculo dinámico de distancias, y catálogo de videos gastronómicos optimizados para restaurantes en Lechería, Puerto La Cruz, Barcelona y Guanta.",
+  "updatedAt":  "2026-11-10T02:06:55.324733874Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

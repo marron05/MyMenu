@@ -67,3 +67,9 @@ export interface FilterState {
 }
 
 export type ActiveTab = 'feed' | 'map' | 'saved' | 'portal';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  restaurantId?: string;
+}
