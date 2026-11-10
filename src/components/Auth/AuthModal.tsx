@@ -135,16 +135,22 @@ export const AuthModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+    <div 
+      onClick={() => setIsAuthModalOpen(false)}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md"
+    >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md bg-stone-900 border border-stone-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+        className="relative w-full max-w-md glass-dock border border-white/[0.09] rounded-t-[32px] sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-bottom-sheet"
       >
+        {/* Mobile Drag Handle */}
+        <div className="sm:hidden w-12 h-1.5 rounded-full bg-white/20 mx-auto mt-3 mb-1 shrink-0" />
+
         {/* Header */}
-        <div className="p-6 border-b border-stone-800 relative bg-gradient-to-b from-stone-800/40 to-transparent">
+        <div className="p-5 sm:p-6 border-b border-white/[0.08] relative bg-gradient-to-b from-white/[0.04] to-transparent">
           <button
             onClick={() => setIsAuthModalOpen(false)}
-            className="absolute top-5 right-5 w-8 h-8 rounded-full bg-stone-950/60 border border-stone-700 flex items-center justify-center text-stone-300 hover:text-white transition-colors"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full glass-action-btn flex items-center justify-center text-stone-300 hover:text-white transition-colors"
           >
             <X className="w-4 h-4" />
           </button>

@@ -1,134 +1,79 @@
-# MyMenu – Plan de Implementación de Arquitectura y Backend Supabase
+# Plan de Implementación: Optimización Integral Mobile-First ("Warm Cinematic Glass")
 
-Plan integral para escalar **MyMenu** incorporando backend en la nube con Supabase (Autenticación real de restaurantes, base de datos relacional PostgreSQL con Row Level Security), geolocalización GPS nativa con cálculo dinámico de distancias en kilómetros, y un sistema optimizado de videos gastronómicos preconfigurados en alta resolución.
-
----
-
-## Decisiones Confirmadas del Usuario
-
-> [!IMPORTANT]
-> Decisiones clave acordadas durante la fase de consulta:
-> - **Prioridad de la fase actual**: Integración de backend relacional con **Supabase**, autenticación real (login/registro para dueños de restaurantes y perfiles de usuario) y persistencia en PostgreSQL con RLS.
-> - **Ubicación y Descubrimiento**: Uso de **Geolocalización GPS real** del navegador (`navigator.geolocation`) con cálculo dinámico de distancia (fórmula Haversine en km) ordenando restaurantes y platos según la proximidad real del comensal.
-> - **Gestión de Videos**: Catálogo curado de **videos gourmet preconfigurados** en bucle de alta calidad (1 plato = 1 video), garantizando rendimiento instantáneo, sin costos excesivos de transcoding ni fallos de carga en conexiones móviles.
+Este plan detalla la reestructuración completa de MyMenu para convertirla en una aplicación web móvil (PWA) de máxima ergonomía, velocidad táctil y estética cinematográfica cálida, diseñada específicamente para teléfonos móviles e interactuable con una sola mano.
 
 ---
 
-## 1. Visión General y Concepto
+## 1. Diagnóstico y Objetivos Mobile-First
 
-MyMenu resuelve la indecisión gastronómica en la zona metropolitana de Anzoátegui (Lechería, Puerto La Cruz, Barcelona y Guanta) sustituyendo menús estáticos y PDFs por un feed vertical dinámico estilo TikTok.
-
-- **Comensales**: Exploran platos en video a pantalla completa (100dvh), filtran por antojo o presupuesto, ven la distancia real a su ubicación y piden en un toque directo vía WhatsApp.
-- **Restaurantes**: Inician sesión con autenticación segura en Supabase, administran su catálogo de platos seleccionando videos culinarios de alta fidelidad, actualizan precios en USD y activan promociones destacadas (Boost).
-
----
-
-## 2. Experiencia de Usuario y Diseño Visual
-
-### Flujos Principales
-1. **Flujo de Descubrimiento (Comensal)**:
-   - Al ingresar, la app solicita permiso de GPS de forma no invasiva para calcular distancias exactas.
-   - Navegación vertical por videos de platos con autoplay/pause inmediato según viewport.
-   - Pestaña de mapa interactivo con pines y radar de cercanía.
-   - Botón directo de pedido por WhatsApp con plantilla de orden pre-llenada.
-2. **Flujo de Restaurante (Gestión & Auth)**:
-   - Modal/Página de autenticación con Supabase (Email/Password y Magic Link).
-   - Panel de control para crear platos seleccionando categoría, precio, ingredientes, alérgenos y video gourmet asociado.
-   - Generador culinario con IA para descripciones irresistibles.
-
-### Identidad Visual y Estilo
-- **Paleta de Colores**: Fondo neutro profundo (`bg-stone-950`), superficies estructurales en pizarra oscura (`bg-stone-900/90`), acento ámbar/dorado cálido (`#f59e0b` / `amber-400`) y verde WhatsApp para conversión directa (`#10b981` / `emerald-500`).
-- **Tipografía**: `Outfit` para títulos gastronómicos de impacto y `Plus Jakarta Sans` para lectura fluida, con cifras tabulares monoespaciadas (`tabular-nums`) para precios y tiempos.
-- **Disciplina Anti-Slop (Zero-Pill)**: Los metadatos (distancia, tiempo de cocción, alérgenos) se presentan como texto limpio con separadores tipográficos (`·`), reservando contenedores exclusivamente para controles de filtrado interactivos.
+1. **Aprovechamiento Real del Viewport (100dvh)**:
+   - Eliminar cortes de scroll y saltos causados por las barras de navegación tradicionales.
+   - El Feed de videos estilo TikTok y el Mapa ocupan el 100% de la altura visible dinámica (`100dvh`), con el header flotando suavemente por encima sin desplazar el contenido.
+2. **Header Translúcido Flotante**:
+   - Barra superior ultra-delgada y flotante con `glass-dock` y desenfoque óptico (`backdrop-filter: blur(24px)`), permitiendo que el video y el mapa se extiendan por debajo.
+3. **Conversión de Modales a Bottom Sheets Nativos**:
+   - `DishDetailsModal`, `FilterDrawer` y `RestaurantProfileModal` se transforman en **hojas inferiores deslizables** con tirador táctil superior (`drag handle`), esquinas superiores redondeadas (`rounded-t-[32px]`) y scroll interno suave.
+4. **Ergonomía de Zona del Pulgar (Thumb Zone)**:
+   - Botón WhatsApp, acciones de guardado y cambio de pantalla ubicados dentro del alcance natural del pulgar en pantallas de 5.8" a 6.7".
+   - Botón flotante inferior (`MobileBottomNav`) con elevación sobre el borde inferior (`bottom-3`) y soporte para `env(safe-area-inset-bottom)`.
+5. **Rendimiento Táctil y Prevención de Zoom Accidental**:
+   - Estricto `touch-action: manipulation` para prevenir retardos de 300ms al tocar.
+   - Fuentes de inputs fijadas a mínimo 16px para evitar auto-zoom indeseado en iOS Safari.
+   - Metadatos con la disciplina *Zero-Pill* para mantener la densidad visual limpia y sin apiñamientos.
 
 ---
 
-## 3. Decisiones de Producto y Arquitectura
+## 2. Cambios Propuestos por Módulo
 
-### A. Autenticación y Base de Datos (Supabase)
-- **Decisión**: Integrar `@supabase/supabase-js` con cliente desacoplado y fallback a almacenamiento local seguro cuando no haya credenciales activas.
-- **Razón**: Permite a los restaurantes tener cuentas reales con contraseñas seguras, mientras que los comensales pueden usar la app de inmediato sin barreras de registro.
-- **Políticas RLS**:
-  - `restaurants`: Lectura pública; actualización restringida al `auth.uid() = user_id`.
-  - `dishes`: Lectura pública; inserción y modificación restringida a los restaurantes propietarios.
+### A. Estilos Globales y Safe Areas (`src/index.css`)
+- Añadir utilidades de padding para safe-area de iOS (`pb-[env(safe-area-inset-bottom)]`).
+- Añadir keyframes para deslizamiento de hojas inferiores (`@keyframes slideUpBottomSheet`).
+- Deshabilitar el rebote elástico de scroll indeseado en el body (`overscroll-behavior-y: none`).
 
-### B. Geolocalización GPS Real
-- **Decisión**: Hook reactivo `useGeolocation` con la API nativa del navegador y fallback a las coordenadas centrales de Lechería (`10.1982, -64.6854`).
-- **Cálculo**: Algoritmo de Haversine para computar distancias precisas en kilómetros en tiempo real.
+### B. Shell Principal de la App (`src/App.tsx`)
+- Reconfigurar el contenedor principal para que los tabs de `feed` y `map` sean pantallas completas sin padding estático forzado.
+- Montar el `Navbar` en modo flotante absoluto (`absolute top-0 inset-x-0 z-40`).
 
-### C. Catálogo de Videos Gastronómicos
-- **Decisión**: Biblioteca de videos gourmet preconfigurados organizados por categoría (hamburguesas, pizzas a la leña, cortes de carne, sushi flameado, pastas, postres).
-- **Razón**: Evita demoras de subida móvil en redes 3G/4G, asegurando que cada plato cargue de forma ultra rápida y con estética cinematográfica.
+### C. Header Minimal Flotante (`src/components/Navbar.tsx`)
+- Convertir el header en una barra de cristal flotante con altura compacta de 52px, logo de MyMenu con isotipo ámbar, selector sutil de zona/GPS y accesos rápidos sin recargar la pantalla.
 
----
+### D. Feed de Videos TikTok (`src/components/Feed/TikTokFeed.tsx` y `DishCard.tsx`)
+- Integrar el espaciado superior para el header flotante y los chips de categorías.
+- Garantizar que los elementos de control (WhatsApp, like, save, share) se ubiquen en el margen derecho inferior con hitboxes táctiles de 44x44px mínimo.
+- En pantallas grandes (tablets/desktops), mantener el contenedor enmarcado como un dispositivo de lujo centrado (`max-w-[430px] rounded-[32px]`).
 
-## 4. Arquitectura Técnica y Estrategia de Datos
+### E. Mapa de Descubrimiento (`src/components/Map/DiscoveryMap.tsx` y `RestaurantSpotlightCard.tsx`)
+- Ajustar la tarjeta spotlight inferior para que flote a `bottom-20` en móvil con margen inferior seguro respecto al `MobileBottomNav`.
+- Garantizar que los filtros de ciudad superiores tengan scroll táctil horizontal suave con snap.
 
-### Diagrama del Sistema
+### F. Conversión de Modales a Bottom Sheets Deslizables
+- **`src/components/Modals/DishDetailsModal.tsx`**:
+  - Transformar el modal centrado en una hoja inferior deslizable (`fixed inset-x-0 bottom-0 max-h-[88dvh] rounded-t-[32px] glass-dock overflow-y-auto`).
+  - Cabecera con barra de agarre táctil (`w-12 h-1.5 rounded-full bg-white/20 mx-auto my-3`).
+  - Botón principal de WhatsApp fijo en la parte inferior de la hoja.
+- **`src/components/Modals/FilterDrawer.tsx`**:
+  - Hoja inferior de filtros con sliders de precio y categorías con botones grandes y táctiles.
+- **`src/components/RestaurantDetail/RestaurantProfileModal.tsx`**:
+  - Hoja inferior para el perfil del restaurante con carrusel de platos y contacto directo.
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    MYMENU CLIENT (REACT SPA / PWA)              │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐   ┌─────────────────┐   ┌───────────────┐  │
-│  │   TikTokFeed    │   │  DiscoveryMap   │   │ PartnerPortal │  │
-│  │ (100dvh Videos) │   │ (GPS & Radar)   │   │ (Auth & CRUD) │  │
-│  └────────┬────────┘   └────────┬────────┘   └───────┬───────┘  │
-│           │                     │                    │          │
-│           ▼                     ▼                    ▼          │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                       MenuContext                         │  │
-│  │  - Estado reactivo de platos y restaurantes               │  │
-│  │  - Geolocalización en vivo (Haversine km)                 │  │
-│  │  - Sesión activa de restaurante (Supabase Auth)           │  │
-│  └──────────────────────────────┬────────────────────────────┘  │
-└─────────────────────────────────┼───────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     SUPABASE CLOUD SERVICES                     │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐   ┌─────────────────┐   ┌───────────────┐  │
-│  │  Supabase Auth  │   │ PostgreSQL RLS  │   │ Stock Videos  │  │
-│  │ (Restaurantes)  │   │ (Platos/Locales)│   │ (Fast CDN)    │  │
-│  └─────────────────┘   └─────────────────┘   └───────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
+### G. Portal "Mi Local" (`src/components/RestaurantPortal/RestaurantDashboard.tsx`)
+- Ajustar el flujo móvil a 1 columna continua con espaciado ergonómico.
+- Previsualizador vertical 9:16 con tamaño adaptativo en pantallas pequeñas.
+- Botones con estado `:active` que simulan pulsación háptica.
 
-### Esquema de Tablas (PostgreSQL / Supabase)
-
-1. **`restaurants`**:
-   - `id` (uuid, primary key)
-   - `user_id` (uuid, references auth.users)
-   - `name` (text), `tagline` (text), `description` (text)
-   - `logo_url` (text), `cover_url` (text)
-   - `address` (text), `city` (text: Lechería, PLC, Barcelona, Guanta)
-   - `lat` (float8), `lng` (float8)
-   - `whatsapp` (text), `rating` (numeric)
-   - `created_at` (timestamp with time zone)
-
-2. **`dishes`**:
-   - `id` (uuid, primary key)
-   - `restaurant_id` (uuid, references restaurants.id on delete cascade)
-   - `name` (text), `description` (text), `price` (numeric)
-   - `category` (text), `prep_time_minutes` (int)
-   - `tags` (text[]), `allergens` (text[]), `ingredients` (text[])
-   - `video_url` (text), `poster_url` (text)
-   - `is_ai_enhanced` (boolean), `is_featured` (boolean)
-   - `views_count` (int), `likes_count` (int), `shares_count` (int)
-   - `created_at` (timestamp with time zone)
+### H. Platos Guardados (`src/components/Saved/SavedDishesView.tsx`)
+- Cuadrícula responsive de 2 columnas en móvil con pósters verticales en proporción 4:5, insignia de precio dorado y acción rápida para ordenar o reproducir.
 
 ---
 
-## 5. Fases de Ejecución
+## 3. Plan de Verificación
 
-1. **Fase 1: Capa de Geolocalización en Vivo**
-   - Implementar el hook de geoposicionamiento y recálculo dinámico de distancia en km para todos los platos del feed y del mapa.
-2. **Fase 2: Módulo de Supabase & Autenticación**
-   - Configuración de cliente `src/lib/supabase.ts` y formulario modal de Login / Registro para restaurantes.
-   - Sincronización bidireccional entre Supabase y almacenamiento local de contingencia.
-3. **Fase 3: Biblioteca Gastronómica y Panel de Restaurante**
-   - Selector interactivo de videos gourmet categorizados con previsualización inmediata.
-   - Publicación y edición en tiempo real conectada a la base de datos.
-4. **Fase 4: Verificación y Despliegue en Vercel**
-   - Pruebas de compilación, linters y validación de variables de entorno.
+1. **Pruebas de Compilación y Tipado**:
+   - Ejecutar co-validación con `compile_applet` y `lint_applet` para garantizar 0 errores de TypeScript y 0 errores de ESLint.
+2. **Verificación de Viewports Móviles**:
+   - iPhone SE / pantallas pequeñas (360px - 375px): Verificar que no haya desbordamiento horizontal (`overflow-x`) y que todos los textos se lean con claridad.
+   - Teléfonos modernos (390px - 430px): Comprobar el ajuste perfecto de 100dvh, la viñeta cinematográfica y el clearance de la barra inferior.
+   - Vista escritorio: Asegurar que el marco de teléfono de lujo centrado conserve su elegancia sin estirar los videos.
+3. **Pruebas de Gestos y Táctil**:
+   - Verificar apertura y cierre de las hojas inferiores (Bottom Sheets).
+   - Verificar doble-tap en los videos del feed y fluidez del snap vertical.

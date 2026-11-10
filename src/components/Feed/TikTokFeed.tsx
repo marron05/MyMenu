@@ -1,16 +1,14 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useMenu } from '../../context/MenuContext';
 import { DishCard } from './DishCard';
-import { CATEGORIES_LIST, CITY_ZONES } from '../../data/initialData';
+import { CATEGORIES_LIST } from '../../data/initialData';
 import { 
   ChevronUp, 
   ChevronDown, 
   SlidersHorizontal, 
-  MapPin, 
-  Sparkles, 
-  Search, 
   RotateCcw,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Sparkles
 } from 'lucide-react';
 
 export const TikTokFeed: React.FC = () => {
@@ -20,7 +18,6 @@ export const TikTokFeed: React.FC = () => {
     setFilters,
     resetFilters,
     setFilterDrawerOpen,
-    restaurants,
   } = useMenu();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,7 +63,6 @@ export const TikTokFeed: React.FC = () => {
   // Keyboard navigation (ArrowUp, ArrowDown)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing in an input
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
         return;
       }
@@ -84,22 +80,22 @@ export const TikTokFeed: React.FC = () => {
   }, [activeIndex, filteredDishes.length, scrollToIndex]);
 
   return (
-    <div className="relative w-full h-[calc(100dvh-57px)] bg-stone-950 flex flex-col items-center justify-center overflow-hidden">
-      {/* Category Horizontal Filter Bar */}
-      <div className="absolute top-3 left-0 right-0 z-30 px-3 sm:px-6 pointer-events-none">
+    <div className="relative w-full h-dvh bg-[#0c0a09] flex flex-col items-center justify-center overflow-hidden">
+      {/* Floating Warm Glass Category Filter Strip */}
+      <div className="absolute top-14 sm:top-16 left-0 right-0 z-30 px-3 sm:px-6 pointer-events-none">
         <div className="max-w-md mx-auto flex items-center justify-between gap-2 pointer-events-auto">
           {/* Categories Horizontal Carousel */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1 bg-stone-950/70 backdrop-blur-md border border-stone-800/80 rounded-2xl shadow-xl">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1.5 glass-dock rounded-2xl shadow-xl border border-white/[0.08]">
             {CATEGORIES_LIST.slice(0, 7).map((cat) => {
               const isActive = filters.category === cat;
               return (
                 <button
                   key={cat}
                   onClick={() => setFilters((prev) => ({ ...prev, category: cat }))}
-                  className={`px-3 py-1 rounded-xl text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
+                  className={`px-3 py-1 rounded-xl text-xs transition-all whitespace-nowrap shrink-0 ${
                     isActive
-                      ? 'bg-amber-400 text-stone-950 font-bold shadow-md shadow-amber-400/20 scale-[1.02]'
-                      : 'text-stone-300 hover:text-white hover:bg-stone-900/60'
+                      ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 font-bold shadow-[0_4px_14px_rgba(245,158,11,0.3)] scale-[1.02]'
+                      : 'text-stone-300 hover:text-white hover:bg-white/[0.06] font-medium'
                   }`}
                 >
                   {cat}
@@ -108,39 +104,40 @@ export const TikTokFeed: React.FC = () => {
             })}
           </div>
 
-          {/* Filter Modal Trigger */}
+          {/* Filter Modal Trigger in Warm Glass */}
           <button
             onClick={() => setFilterDrawerOpen(true)}
-            className="w-8 h-8 rounded-xl bg-stone-950/80 backdrop-blur-md border border-stone-800 flex items-center justify-center text-stone-200 hover:text-amber-400 shadow-md shrink-0 transition-colors"
+            className="w-8 h-8 rounded-xl glass-action-btn flex items-center justify-center text-stone-300 hover:text-amber-300 shadow-md shrink-0 transition-colors"
             title="Abrir filtros"
+            aria-label="Abrir filtros"
           >
-            <SlidersHorizontal className="w-4 h-4" />
+            <SlidersHorizontal className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {/* Main Reel Viewport */}
       {filteredDishes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center p-6 max-w-sm">
-          <div className="w-16 h-16 rounded-2xl bg-stone-900 border border-stone-800 flex items-center justify-center text-amber-400 mb-4">
+        <div className="flex flex-col items-center justify-center text-center p-8 max-w-sm glass-warm rounded-3xl border border-white/[0.08] shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-amber-950/20 border border-amber-400/30 flex items-center justify-center text-amber-400 mb-4 shadow-inner">
             <UtensilsCrossed className="w-8 h-8" />
           </div>
           <h3 className="text-lg font-bold font-display text-stone-100">
-            No encontramos platos con estos filtros
+            No encontramos platos en esta categoría
           </h3>
-          <p className="text-xs text-stone-400 mt-1 mb-4 leading-relaxed">
-            Prueba seleccionando otra categoría o ampliando el rango de precio y ubicación.
+          <p className="text-xs text-stone-400 mt-1.5 mb-5 leading-relaxed">
+            Prueba seleccionando otra especialidad o ampliando el rango de precio y ubicación.
           </p>
           <button
             onClick={resetFilters}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-stone-950 bg-amber-400 hover:bg-amber-300 rounded-lg shadow-sm transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-stone-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 rounded-xl shadow-[0_4px_16px_rgba(245,158,11,0.25)] transition-all active:scale-95"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Restablecer Filtros</span>
           </button>
         </div>
       ) : (
-        <div className="relative w-full h-full max-w-md mx-auto flex items-center justify-center sm:rounded-2xl sm:overflow-hidden sm:border sm:border-stone-800/80 sm:shadow-2xl sm:my-auto sm:max-h-[92dvh]">
+        <div className="relative w-full h-full max-w-[430px] mx-auto flex items-center justify-center sm:rounded-[32px] sm:overflow-hidden sm:border sm:border-white/[0.08] sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85)] sm:my-auto sm:max-h-[92dvh] bg-[#0c0a09]">
           {/* Scrollable Container with Snapping */}
           <div
             ref={containerRef}
@@ -161,23 +158,23 @@ export const TikTokFeed: React.FC = () => {
           </div>
 
           {/* Desktop/Tablet Up/Down Navigation Buttons */}
-          <div className="hidden lg:flex flex-col gap-2 absolute -right-14 top-1/2 -translate-y-1/2 z-40">
+          <div className="hidden lg:flex flex-col gap-2.5 absolute -right-16 top-1/2 -translate-y-1/2 z-40">
             <button
               onClick={() => scrollToIndex(Math.max(0, activeIndex - 1))}
               disabled={activeIndex === 0}
-              className="w-10 h-10 rounded-full bg-stone-900/90 border border-stone-800 text-stone-200 hover:text-amber-400 hover:bg-stone-800 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-lg transition-all"
+              className="w-10 h-10 rounded-full glass-action-btn text-stone-300 hover:text-amber-300 hover:border-amber-400/40 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-xl transition-all"
               title="Plato anterior (Flecha Arriba)"
               aria-label="Plato anterior"
             >
               <ChevronUp className="w-5 h-5" />
             </button>
-            <div className="text-[10px] font-mono tabular-nums text-center text-stone-400">
+            <div className="text-[11px] font-mono tabular-nums text-center text-amber-200/80 font-medium">
               {activeIndex + 1}/{filteredDishes.length}
             </div>
             <button
               onClick={() => scrollToIndex(Math.min(filteredDishes.length - 1, activeIndex + 1))}
               disabled={activeIndex === filteredDishes.length - 1}
-              className="w-10 h-10 rounded-full bg-stone-900/90 border border-stone-800 text-stone-200 hover:text-amber-400 hover:bg-stone-800 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-lg transition-all"
+              className="w-10 h-10 rounded-full glass-action-btn text-stone-300 hover:text-amber-300 hover:border-amber-400/40 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-xl transition-all"
               title="Siguiente plato (Flecha Abajo)"
               aria-label="Siguiente plato"
             >

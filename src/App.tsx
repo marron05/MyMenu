@@ -16,16 +16,24 @@ const AppContent: React.FC = () => {
   const { activeTab } = useMenu();
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-sans select-none pb-14 sm:pb-0">
-      {/* Top Navigation conforming to Top Bar Contract */}
+    <div className="min-h-screen bg-[#0c0a09] text-stone-100 flex flex-col font-sans select-none">
+      {/* Floating Translucent Header */}
       <Navbar />
 
-      {/* Main View Area */}
+      {/* Main View Area: 100dvh for Feed/Map, scrollable for Saved/Portal */}
       <main className="flex-1 flex flex-col relative w-full overflow-hidden">
         {activeTab === 'feed' && <TikTokFeed />}
         {activeTab === 'map' && <DiscoveryMap />}
-        {activeTab === 'saved' && <SavedDishesView />}
-        {activeTab === 'portal' && <RestaurantDashboard />}
+        {activeTab === 'saved' && (
+          <div className="pt-14 pb-20 sm:pt-16 sm:pb-8 min-h-screen overflow-y-auto">
+            <SavedDishesView />
+          </div>
+        )}
+        {activeTab === 'portal' && (
+          <div className="pt-14 pb-20 sm:pt-16 sm:pb-8 min-h-screen overflow-y-auto">
+            <RestaurantDashboard />
+          </div>
+        )}
       </main>
 
       {/* Mobile Bottom Navigation (Ergonomic thumb zone) */}
